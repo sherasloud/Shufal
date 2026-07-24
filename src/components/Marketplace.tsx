@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, Timestamp, increment, runTransaction } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { Product, UserProfile } from '../types';
+import { Product, UserProfile, Order } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Search, MapPin, Tag, X, Sparkles, TrendingUp, Users, Leaf, Gavel, Timer, ArrowUpCircle } from 'lucide-react';
+import { Plus, Search, MapPin, Tag, X, Sparkles, TrendingUp, Users, Leaf, Gavel, Timer, ArrowUpCircle, ShoppingBag, Minus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { bn } from 'date-fns/locale';
@@ -35,6 +35,9 @@ export default function Marketplace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [buyQuantity, setBuyQuantity] = useState(1);
+  const [isBuying, setIsBuying] = useState(false);
   const [subscriberEmail, setSubscriberEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [lastUpdatedId, setLastUpdatedId] = useState<string | null>(null);
@@ -42,16 +45,17 @@ export default function Marketplace() {
   const prevProductsRef = useRef<Product[]>([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (auth.currentUser) {
-        const docRef = doc(db, 'users', auth.currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserProfile(docSnap.data() as UserProfile);
-        }
+  const fetchProfile = async () => {
+    if (auth.currentUser) {
+      const docRef = doc(db, 'users', auth.currentUser.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setUserProfile(docSnap.data() as UserProfile);
       }
-    };
+    }
+  };
+
+  useEffect(() => {
     fetchProfile();
   }, [auth.currentUser]);
 
@@ -67,6 +71,7 @@ export default function Marketplace() {
     const name = formData.get('name') as string;
     const price = Number(formData.get('price'));
     const unit = formData.get('unit') as string;
+    const stock = Number(formData.get('stock') || 100);
     const description = formData.get('description') as string;
     const isAuction = formData.get('isAuction') === 'on';
     const auctionDays = Number(formData.get('auctionDays') || 3);
@@ -88,6 +93,7 @@ export default function Marketplace() {
         name,
         price,
         unit,
+        stock,
         description,
         category: 'সবজি',
         farmerId: auth.currentUser.uid,
@@ -111,6 +117,88 @@ export default function Marketplace() {
       setShowAddModal(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'products');
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!auth.currentUser || !selectedProduct) {
+      alert('পণ্য কিনতে দয়া করে লগইন করুন।');
+      return;
+    }
+
+    if (!userProfile) {
+      await fetchProfile();
+    }
+
+    const totalPrice = selectedProduct.price * buyQuantity;
+    const currentBalance = userProfile?.walletBalance || 0;
+
+    if (currentBalance < totalPrice) {
+      alert('আপনার ওয়ালেটে পর্যাপ্ত ব্যালেন্স নেই। দয়া করে টপ-আপ করুন।');
+      return;
+    }
+
+    setIsBuying(true);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, 'users', auth.currentUser!.uid);
+        const productRef = doc(db, 'products', selectedProduct.id);
+        
+        const productDoc = await transaction.get(productRef);
+        if (!productDoc.exists()) throw new Error("Product does not exist!");
+        
+        const productData = productDoc.data() as Product;
+        const currentStock = productData.stock || 0;
+
+        if (currentStock < buyQuantity) {
+          throw new Error("পর্যাপ্ত স্টক নেই।");
+        }
+
+        // Deduct from wallet
+        transaction.update(userRef, {
+          walletBalance: increment(-totalPrice)
+        });
+
+        // Deduct from stock
+        transaction.update(productRef, {
+          stock: increment(-buyQuantity)
+        });
+
+        // Record transaction for buyer
+        const txRef = doc(collection(db, 'users', auth.currentUser!.uid, 'transactions'));
+        transaction.set(txRef, {
+          userId: auth.currentUser!.uid,
+          amount: totalPrice,
+          type: 'debit',
+          description: `${selectedProduct.name} কেনা হয়েছে (${buyQuantity}${selectedProduct.unit})`,
+          timestamp: serverTimestamp()
+        });
+
+        // Create Order
+        const orderRef = doc(collection(db, 'orders'));
+        transaction.set(orderRef, {
+          productId: selectedProduct.id,
+          productName: selectedProduct.name,
+          buyerId: auth.currentUser!.uid,
+          buyerName: auth.currentUser!.displayName || 'ক্রেতা',
+          sellerId: selectedProduct.farmerId,
+          quantity: buyQuantity,
+          totalPrice,
+          status: 'completed',
+          timestamp: serverTimestamp()
+        });
+      });
+
+      alert('অভিনন্দন! আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে।');
+      setSelectedProduct(null);
+      setBuyQuantity(1);
+      // Refresh profile to update balance
+      fetchProfile();
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      alert(error.message || 'দুঃখিত, কেনা সম্ভব হয়নি।');
+    } finally {
+      setIsBuying(false);
     }
   };
 
@@ -453,14 +541,103 @@ export default function Marketplace() {
                   </button>
                 </div>
               ) : (
-                <button className="w-full bg-slate-900 text-white py-3 rounded-xl font-medium hover:bg-slate-800 transition-colors">
-                  বিক্রেতার সাথে যোগাযোগ করুন
-                </button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-500 bg-slate-50 p-2 rounded-lg">
+                    <span>স্টক: {product.stock || 0} {product.unit}</span>
+                    <span className="text-emerald-600">৳{product.price}/{product.unit}</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setBuyQuantity(1);
+                    }}
+                    className="w-full bg-slate-900 text-white py-3 rounded-xl font-black hover:bg-slate-800 transition-all flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    এখনই কিনুন
+                  </button>
+                </div>
               )}
             </div>
           </motion.div>
         ))}
       </div>
+
+      {/* Buy Modal */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="relative h-48">
+                <img src={selectedProduct.imageUrl} className="w-full h-full object-cover" alt="" />
+                <button 
+                  onClick={() => setSelectedProduct(null)}
+                  className="absolute top-4 right-4 bg-white/20 backdrop-blur-xl text-white p-2 rounded-full hover:bg-white/40 transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="p-8">
+                <h3 className="text-2xl font-black text-slate-900 mb-2">{selectedProduct.name}</h3>
+                <p className="text-slate-500 text-sm mb-6 leading-relaxed">{selectedProduct.description}</p>
+                
+                <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">পরিমাণ ({selectedProduct.unit})</span>
+                    <div className="flex items-center space-x-4 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+                      <button 
+                        onClick={() => setBuyQuantity(prev => Math.max(1, prev - 1))}
+                        className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-all active:scale-90"
+                      >
+                        <Minus className="w-5 h-5" />
+                      </button>
+                      <span className="text-xl font-black w-8 text-center">{buyQuantity}</span>
+                      <button 
+                        onClick={() => setBuyQuantity(prev => Math.min(selectedProduct.stock || 0, prev + 1))}
+                        className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-all active:scale-90"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                    <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">মোট দাম</span>
+                    <span className="text-3xl font-black text-emerald-600 tracking-tighter">৳{selectedProduct.price * buyQuantity}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    disabled={isBuying || (selectedProduct.stock || 0) < buyQuantity}
+                    onClick={handleBuyNow}
+                    className="w-full bg-emerald-600 text-white py-5 rounded-[1.5rem] font-black text-lg shadow-xl shadow-emerald-600/20 hover:bg-emerald-700 transition-all disabled:bg-slate-300 disabled:shadow-none flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    {isBuying ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>অর্ডার করা হচ্ছে...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-6 h-6" />
+                        <span>অর্ডার নিশ্চিত করুন</span>
+                      </>
+                    )}
+                  </button>
+                  <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                    আপনার ওয়ালেট ব্যালেন্স: ৳{userProfile?.walletBalance || 0}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Floating Action Button for Adding Product */}
       {auth.currentUser && (
@@ -503,6 +680,10 @@ export default function Marketplace() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">একক</label>
                   <input name="unit" type="text" className="w-full p-3 border border-slate-200 rounded-xl" placeholder="যেমন- কেজি" required />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">স্টক (পরিমাণ)</label>
+                <input name="stock" type="number" defaultValue="100" className="w-full p-3 border border-slate-200 rounded-xl" placeholder="যেমন- ১০০" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">বিবরণ</label>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
 import { motion } from 'motion/react';
-import { User, Mail, Shield, LogOut, Package, MessageSquare, Gavel, TrendingUp, CreditCard } from 'lucide-react';
+import { User, Mail, Shield, LogOut, Package, MessageSquare, Gavel, TrendingUp, CreditCard, ShoppingBag } from 'lucide-react';
 import { signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { UserProfile, UserRole } from '../types';
+import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, orderBy, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
+import { UserProfile, UserRole, Order } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 import WalletComponent from './Wallet';
 
@@ -14,6 +14,7 @@ const ADMIN_EMAILS = ['shufalharvest@gmail.com', 'shustobd@gmail.com'];
 export default function Profile() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -21,6 +22,7 @@ export default function Profile() {
 
   useEffect(() => {
     let unsubscribeProfile: () => void = () => {};
+    let unsubscribeOrders: () => void = () => {};
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -30,11 +32,21 @@ export default function Profile() {
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           }
+        });
+
+        const ordersQuery = query(
+          collection(db, 'orders'),
+          where('buyerId', '==', currentUser.uid),
+          orderBy('timestamp', 'desc')
+        );
+        unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
+          setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
           setLoading(false);
         }, (error) => {
-          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+          console.error("Orders list error:", error);
           setLoading(false);
         });
+
       } else {
         setLoading(false);
       }
@@ -43,6 +55,7 @@ export default function Profile() {
     return () => {
       unsubscribeAuth();
       unsubscribeProfile();
+      unsubscribeOrders();
     };
   }, []);
 
@@ -141,6 +154,83 @@ export default function Profile() {
                 আমার ওয়ালেট
               </h3>
               {profile && <WalletComponent profile={profile} />}
+            </section>
+
+            <section className="md:col-span-2">
+              <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center">
+                <ShoppingBag className="w-6 h-6 mr-3 text-emerald-600" />
+                আমার অর্ডারসমূহ
+              </h3>
+              <div className="space-y-4">
+                {orders.length === 0 ? (
+                  <div className="bg-slate-50 p-10 rounded-3xl border border-dashed border-slate-200 text-center">
+                    <p className="text-slate-400">আপনার এখনো কোনো অর্ডার নেই।</p>
+                  </div>
+                ) : (
+                  orders.map(order => (
+                    <div key={order.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-emerald-50 p-3 rounded-2xl">
+                          <Package className="w-6 h-6 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900">{order.productName}</h4>
+                          <p className="text-xs text-slate-500">পরিমাণ: {order.quantity} | মোট: ৳{order.totalPrice}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {order.timestamp?.toDate?.().toLocaleString('bn-BD')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${
+                          order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
+                          order.status === 'refunded' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {order.status === 'completed' ? 'সফল' : order.status === 'refunded' ? 'ফেরত দেওয়া হয়েছে' : 'পেন্ডিং'}
+                        </span>
+                        {order.status === 'completed' && (
+                          <button 
+                            onClick={async () => {
+                              if (confirm('আপনি কি এই অর্ডারের টাকা ফেরত পেতে চান?')) {
+                                try {
+                                  await runTransaction(db, async (transaction) => {
+                                    const userRef = doc(db, 'users', auth.currentUser!.uid);
+                                    const orderRef = doc(db, 'orders', order.id);
+                                    
+                                    // Update order status
+                                    transaction.update(orderRef, { status: 'refunded' });
+                                    
+                                    // Refund to wallet
+                                    transaction.update(userRef, {
+                                      walletBalance: increment(order.totalPrice)
+                                    });
+
+                                    // Record transaction
+                                    const txRef = doc(collection(db, 'users', auth.currentUser!.uid, 'transactions'));
+                                    transaction.set(txRef, {
+                                      userId: auth.currentUser!.uid,
+                                      amount: order.totalPrice,
+                                      type: 'credit',
+                                      description: `${order.productName} এর টাকা ফেরত (Refund)`,
+                                      timestamp: serverTimestamp()
+                                    });
+                                  });
+                                  alert('টাকা সফলভাবে ওয়ালেটে ফেরত দেওয়া হয়েছে।');
+                                } catch (e) {
+                                  alert('ফেরত দেওয়া সম্ভব হয়নি।');
+                                }
+                              }
+                            }}
+                            className="text-[10px] font-bold text-emerald-600 hover:underline"
+                          >
+                            টাকা ফেরত নিন
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </section>
 
             <section>

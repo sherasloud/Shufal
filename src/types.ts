@@ -39,6 +39,20 @@ export interface Product {
   currentBid?: number;
   highestBidderId?: string;
   highestBidderName?: string;
+  stock?: number;
+}
+
+export interface Order {
+  id: string;
+  productId: string;
+  productName: string;
+  buyerId: string;
+  buyerName: string;
+  sellerId: string;
+  quantity: number;
+  totalPrice: number;
+  status: 'pending' | 'completed' | 'cancelled' | 'refunded';
+  timestamp: any;
 }
 
 export interface Post {
