@@ -123,38 +123,6 @@ export default function Profile() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-slate-100">
-            <div className="md:col-span-2 bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100 mb-4">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
-                <Shield className="w-5 h-5 mr-2 text-emerald-600" />
-                আপনার ভূমিকা পরিবর্তন করুন
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button 
-                  onClick={() => updateRole('farmer')}
-                  className={`p-4 rounded-2xl border-2 transition-all text-left group ${profile?.role === 'farmer' ? 'border-emerald-500 bg-white shadow-md' : 'border-slate-200 bg-white hover:border-emerald-200'}`}
-                >
-                  <Package className={`w-8 h-8 mb-2 ${profile?.role === 'farmer' ? 'text-emerald-500' : 'text-slate-400 group-hover:text-emerald-400'}`} />
-                  <div className="font-bold text-slate-900">আমি একজন কৃষক</div>
-                  <div className="text-xs text-slate-500">পণ্য তালিকাভুক্ত এবং বিক্রি করতে চান</div>
-                </button>
-                <button 
-                  onClick={() => updateRole('trader')}
-                  className={`p-4 rounded-2xl border-2 transition-all text-left group ${profile?.role === 'trader' ? 'border-blue-500 bg-white shadow-md' : 'border-slate-200 bg-white hover:border-blue-200'}`}
-                >
-                  <TrendingUp className={`w-8 h-8 mb-2 ${profile?.role === 'trader' ? 'text-blue-500' : 'text-slate-400 group-hover:text-blue-400'}`} />
-                  <div className="font-bold text-slate-900">আমি একজন ব্যবসায়ী</div>
-                  <div className="text-xs text-slate-500">পণ্য কেনা এবং পুনরায় বিক্রি করতে চান</div>
-                </button>
-                <button 
-                  onClick={() => updateRole('buyer')}
-                  className={`p-4 rounded-2xl border-2 transition-all text-left group ${profile?.role === 'buyer' ? 'border-slate-500 bg-white shadow-md' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                >
-                  <User className={`w-8 h-8 mb-2 ${profile?.role === 'buyer' ? 'text-slate-700' : 'text-slate-400 group-hover:text-slate-500'}`} />
-                  <div className="font-bold text-slate-900">আমি একজন ক্রেতা</div>
-                  <div className="text-xs text-slate-500">শুধুমাত্র পণ্য ক্রয় করতে চান</div>
-                </button>
-              </div>
-            </div>
 
             {isAdminUser && (
               <div className="md:col-span-2">
