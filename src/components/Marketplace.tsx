@@ -77,6 +77,13 @@ export default function Marketplace() {
     }
 
     try {
+      // If user is just a buyer, upgrade them to farmer since they are posting a product
+      if (userProfile?.role === 'buyer') {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          role: 'farmer'
+        });
+      }
+
       const productData: any = {
         name,
         price,
@@ -218,7 +225,7 @@ export default function Marketplace() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">বাজার</h1>
           <p className="text-slate-500">সরাসরি স্থানীয় খামার থেকে আসা তাজা পণ্য</p>
         </div>
-        {(userProfile?.role === 'farmer' || userProfile?.role === 'trader' || userProfile?.role === 'admin') && (
+        {userProfile && (
           <button 
             onClick={() => {
               if (!auth.currentUser) {
@@ -227,7 +234,7 @@ export default function Marketplace() {
               }
               setShowAddModal(true);
             }}
-            className="flex items-center justify-center space-x-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-md"
+            className="flex items-center justify-center space-x-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition-all shadow-md active:scale-95"
           >
             <Plus className="w-5 h-5" />
             <span>আমার পণ্য তালিকাভুক্ত করুন</span>
@@ -454,6 +461,19 @@ export default function Marketplace() {
           </motion.div>
         ))}
       </div>
+
+      {/* Floating Action Button for Adding Product */}
+      {auth.currentUser && (
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="fixed bottom-24 right-6 md:right-12 z-40 bg-emerald-600 text-white p-4 rounded-full shadow-2xl hover:bg-emerald-700 transition-all active:scale-90 flex items-center gap-2 group"
+        >
+          <Plus className="w-6 h-6" />
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-bold whitespace-nowrap">
+            পণ্য যোগ করুন
+          </span>
+        </button>
+      )}
 
       {showAddModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">

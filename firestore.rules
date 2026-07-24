@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     function canPost() {
-      return isAdmin() || getUserRole() == 'farmer' || getUserRole() == 'trader';
+      return isSignedIn();
     }
 
     // Default deny
