@@ -1,0 +1,8 @@
+{
+  "name": "Shufal",
+  "description": "কৃষকদের জন্য একটি ডিজিটাল প্ল্যাটফর্ম যেখানে তারা ফসল বিক্রি করতে পারেন, আবহাওয়ার আপডেট পেতে পারেন এবং কৃষি বিশেষজ্ঞদের পরামর্শ নিতে পারেন।",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

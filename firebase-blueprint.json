@@ -1,0 +1,62 @@
+{
+  "collections": [
+    {
+      "name": "products",
+      "description": "Produce listed by farmers for sale",
+      "fields": [
+        { "name": "name", "type": "string" },
+        { "name": "category", "type": "string" },
+        { "name": "price", "type": "number" },
+        { "name": "unit", "type": "string" },
+        { "name": "farmerId", "type": "string" },
+        { "name": "farmerName", "type": "string" },
+        { "name": "location", "type": "string" },
+        { "name": "description", "type": "string" },
+        { "name": "imageUrl", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "name": "posts",
+      "description": "Community forum posts",
+      "fields": [
+        { "name": "title", "type": "string" },
+        { "name": "content", "type": "string" },
+        { "name": "authorId", "type": "string" },
+        { "name": "authorName", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" },
+        { "name": "likes", "type": "number" }
+      ]
+    },
+    {
+      "name": "comments",
+      "description": "Comments on forum posts",
+      "fields": [
+        { "name": "postId", "type": "string" },
+        { "name": "content", "type": "string" },
+        { "name": "authorId", "type": "string" },
+        { "name": "authorName", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "name": "marketPrices",
+      "description": "Real-time crop market prices",
+      "fields": [
+        { "name": "crop", "type": "string" },
+        { "name": "price", "type": "number" },
+        { "name": "trend", "type": "string" },
+        { "name": "region", "type": "string" },
+        { "name": "lastUpdated", "type": "timestamp" }
+      ]
+    },
+    {
+      "name": "subscribers",
+      "description": "Newsletter email subscribers",
+      "fields": [
+        { "name": "email", "type": "string" },
+        { "name": "subscribedAt", "type": "timestamp" }
+      ]
+    }
+  ]
+}

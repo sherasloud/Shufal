@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(authorIdField) {
+      return isSignedIn() && request.auth.uid == authorIdField;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.farmerId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        isOwner(resource.data.farmerId) ||
+        // Allow updating only non-sensitive fields
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'category', 'price', 'unit', 'location', 'description', 'imageUrl']))
+      );
+      allow delete: if isOwner(resource.data.farmerId);
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        isOwner(resource.data.authorId) ||
+        // Action: Like (any signed-in user can increment likes)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) && 
+         request.resource.data.likes == resource.data.likes + 1)
+      );
+      allow delete: if isOwner(resource.data.authorId);
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isOwner(resource.data.authorId);
+      allow delete: if isOwner(resource.data.authorId);
+    }
+
+    match /marketPrices/{priceId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.token.email == 'shabbdorg@gmail.com';
+    }
+
+    match /subscribers/{subscriberId} {
+      allow create: if true; // Anyone can subscribe
+      allow read, update, delete: if isSignedIn() && request.auth.token.email == 'shabbdorg@gmail.com';
+    }
+  }
+}
