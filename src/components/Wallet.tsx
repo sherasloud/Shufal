@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, Clock, CreditCard } from 'lucide-react';
 import { Transaction, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,33 +33,9 @@ export default function WalletComponent({ profile }: WalletProps) {
   const handleTopUp = async (amount: number) => {
     if (!profile.uid || amount <= 0) return;
     
-    setLoading(true);
-    try {
-      const userRef = doc(db, 'users', profile.uid);
-      
-      // Update balance
-      await updateDoc(userRef, {
-        walletBalance: increment(amount)
-      });
-
-      // Record transaction
-      await addDoc(collection(db, 'users', profile.uid, 'transactions'), {
-        userId: profile.uid,
-        amount,
-        type: 'credit',
-        description: 'টাকা যোগ করা হয়েছে (Demo Top-up)',
-        timestamp: serverTimestamp()
-      });
-
-      setIsAddingMoney(false);
-      setTopUpAmount(0);
-      alert(`${amount}৳ সফলভাবে যোগ করা হয়েছে!`);
-    } catch (error) {
-      console.error('Top-up error:', error);
-      alert('দুঃখিত, টাকা যোগ করা যায়নি।');
-    } finally {
-      setLoading(false);
-    }
+    alert('দুঃখিত, রিয়েল পেমেন্ট গেটওয়ে এখনো চালু হয়নি। শীঘ্রই এই সুবিধাটি যুক্ত করা হবে।');
+    setIsAddingMoney(false);
+    setTopUpAmount(0);
   };
 
   return (
