@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Minus, Search, Calendar, MapPin } from 'lucid
 import { MarketPrice } from '../types';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export default function MarketPrices() {
   const [prices, setPrices] = useState<MarketPrice[]>([]);
@@ -27,6 +28,8 @@ export default function MarketPrices() {
         setPrices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MarketPrice)));
       }
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'marketPrices');
     });
     return () => unsubscribe();
   }, []);

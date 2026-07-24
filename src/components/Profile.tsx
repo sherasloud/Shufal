@@ -1,13 +1,34 @@
-import React from 'react';
-import { auth } from '../lib/firebase';
+import React, { useState, useEffect } from 'react';
+import { db, auth } from '../lib/firebase';
 import { motion } from 'motion/react';
-import { User, Mail, Shield, LogOut, Package, MessageSquare } from 'lucide-react';
-import { signOut } from 'firebase/auth';
+import { User, Mail, Shield, LogOut, Package, MessageSquare, Gavel } from 'lucide-react';
+import { signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { UserProfile } from '../types';
+
+const ADMIN_EMAIL = 'shufalharvest@gmail.com';
 
 export default function Profile() {
-  const user = auth.currentUser;
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const docRef = doc(db, 'users', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data() as UserProfile);
+        }
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -55,10 +76,15 @@ export default function Profile() {
               <h1 className="text-3xl font-black text-slate-900 mb-1">
                 {user.displayName || 'কৃষক বন্ধু'}
               </h1>
-              <p className="text-slate-500 flex items-center justify-center md:justify-start">
-                <Mail className="w-4 h-4 mr-2" />
-                {user.email}
-              </p>
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                <p className="text-slate-500 flex items-center">
+                  <Mail className="w-4 h-4 mr-2" />
+                  {user.email}
+                </p>
+                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border border-emerald-200">
+                  {profile?.role === 'farmer' ? 'কৃষক' : profile?.role === 'trader' ? 'ব্যবসায়ী' : profile?.role === 'admin' ? 'অ্যাডমিন' : 'ক্রেতা'}
+                </div>
+              </div>
             </div>
             <button 
               onClick={handleLogout}
@@ -70,6 +96,17 @@ export default function Profile() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-slate-100">
+            {user.email === ADMIN_EMAIL && (
+              <div className="md:col-span-2">
+                <button 
+                  onClick={() => navigate('/admin')}
+                  className="w-full flex items-center justify-center p-4 bg-purple-50 text-purple-700 rounded-2xl border border-purple-100 font-bold hover:bg-purple-100 transition-colors mb-4"
+                >
+                  <Shield className="w-5 h-5 mr-2" />
+                  অ্যাডমিন প্যানেল পরিচালনা করুন
+                </button>
+              </div>
+            )}
             <section>
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
                 <Package className="w-5 h-5 mr-2 text-emerald-600" />

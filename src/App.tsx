@@ -19,39 +19,67 @@ import Forum from './components/Forum';
 import ExpertTips from './components/ExpertTips';
 import Profile from './components/Profile';
 import Admin from './components/Admin';
-import { onAuthStateChanged, User as FirebaseUser, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider } from './lib/firebase';
+import { onAuthStateChanged, User as FirebaseUser, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, db } from './lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { seedInitialData } from './lib/seedData';
+import { UserProfile } from './types';
+
+const ADMIN_EMAIL = 'shufalharvest@gmail.com';
 
 function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const location = useLocation();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data() as UserProfile);
+        } else {
+          const profile: UserProfile = {
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || 'নামহীন',
+            photoURL: user.photoURL || '',
+            role: user.email === ADMIN_EMAIL ? 'admin' : 'buyer',
+            createdAt: serverTimestamp()
+          };
+          await setDoc(doc(db, 'users', user.uid), profile);
+          setUserProfile(profile);
+        }
+        seedInitialData().catch(console.error);
+      } else {
+        setUserProfile(null);
+      }
     });
-    
-    // Seed initial data once
-    seedInitialData().catch(console.error);
 
     return () => unsubscribe();
   }, []);
 
   const handleAuth = async () => {
     if (user) {
-      // Don't auto-logout, maybe user wants to go to profile
-      // But in this simple UI, we will handle login/logout/profile separately
+      // Don't auto-logout
     } else {
       try {
         console.log("Starting login with popup...");
         await signInWithPopup(auth, googleProvider);
       } catch (error: any) {
         console.error("Login failed:", error);
+        
+        const currentDomain = window.location.hostname;
+        
         if (error.code === 'auth/unauthorized-domain') {
-          alert('ত্রুটি: এই ডোমেইনটি ফায়ারবেস অথরাইজড ডোমেইন লিস্টে নেই। দয়া করে ফায়ারবেস কনসোলে ডোমেইনটি যোগ করুন।');
+          alert(`ত্রুটি: এই ডোমেইনটি (${currentDomain}) ফায়ারবেস অথরাইজড ডোমেইন লিস্টে নেই।\n\nদয়া করে ফায়ারবেস কনসোলে (Authentication > Settings > Authorized domains) এই ডোমেইনটি যোগ করুন।`);
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          alert('আপনি লগইন উইন্ডোটি বন্ধ করে দিয়েছেন। আবার চেষ্টা করুন।');
+        } else if (error.code === 'auth/popup-blocked') {
+          alert('আপনার ব্রাউজার পপআপ ব্লক করেছে। দয়া করে পপআপ এলাউ করুন এবং আবার চেষ্টা করুন।');
         } else {
           alert(`লগইন ব্যর্থ হয়েছে: ${error.message}`);
         }
@@ -67,7 +95,7 @@ function Navigation() {
     { name: 'পরামর্শ', path: '/tips', icon: Lightbulb },
   ];
 
-  const isAdmin = user?.email === 'shabbdorg@gmail.com';
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
     <>

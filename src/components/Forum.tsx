@@ -5,6 +5,7 @@ import { Post } from '../types';
 import { motion } from 'motion/react';
 import { MessageSquare, ThumbsUp, Send, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 export default function Forum() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -14,6 +15,8 @@ export default function Forum() {
     const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'posts');
     });
     return () => unsubscribe();
   }, []);
@@ -37,7 +40,7 @@ export default function Forum() {
       });
       setNewPost({ title: '', content: '' });
     } catch (error) {
-      console.error("Error posting:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'posts');
     }
   };
 
@@ -48,7 +51,7 @@ export default function Forum() {
         likes: increment(1)
       });
     } catch (error) {
-      console.error("Error liking post:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
     }
   };
 

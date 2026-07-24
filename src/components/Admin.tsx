@@ -3,12 +3,14 @@ import { db, auth } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { MarketPrice } from '../types';
 import { motion } from 'motion/react';
-import { Plus, Trash2, Edit2, Save, X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, TrendingUp, TrendingDown, Minus, Users } from 'lucide-react';
+import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
-const ADMIN_EMAIL = 'shabbdorg@gmail.com';
+const ADMIN_EMAIL = 'shufalharvest@gmail.com';
 
 export default function Admin() {
   const [prices, setPrices] = useState<MarketPrice[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MarketPrice>>({});
@@ -30,10 +32,30 @@ export default function Admin() {
         ...doc.data()
       })) as MarketPrice[];
       setPrices(priceData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'marketPrices');
+    });
+
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    const usersUnsubscribe = onSnapshot(usersQuery, (snapshot) => {
+      setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      usersUnsubscribe();
+    };
   }, []);
+
+  const handleUpdateRole = async (userId: string, newRole: string) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), { role: newRole });
+      alert('রোল সফলভাবে পরিবর্তন করা হয়েছে।');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+    }
+  };
 
   const handleAddPrice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +70,7 @@ export default function Admin() {
       setShowAddForm(false);
       setNewPrice({ crop: '', price: 0, trend: 'stable', region: 'ঢাকা' });
     } catch (error) {
-      console.error("Error adding price:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'marketPrices');
     }
   };
 
@@ -62,7 +84,7 @@ export default function Admin() {
       });
       setEditingId(null);
     } catch (error) {
-      console.error("Error updating price:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `marketPrices/${id}`);
     }
   };
 
@@ -71,7 +93,7 @@ export default function Admin() {
     try {
       await deleteDoc(doc(db, 'marketPrices', id));
     } catch (error) {
-      console.error("Error deleting price:", error);
+      handleFirestoreError(error, OperationType.DELETE, `marketPrices/${id}`);
     }
   };
 
@@ -101,6 +123,61 @@ export default function Admin() {
           <Plus className="w-5 h-5" />
           <span>নতুন দাম যোগ করুন</span>
         </button>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm mb-8">
+        <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+          <Users className="w-6 h-6 text-emerald-600" />
+          <h2 className="text-xl font-bold text-slate-900">ব্যবহারকারী ও রোল ব্যবস্থাপনা</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-200">
+                <th className="px-6 py-4 text-sm font-bold text-slate-600">ব্যবহারকারী</th>
+                <th className="px-6 py-4 text-sm font-bold text-slate-600">রোল</th>
+                <th className="px-6 py-4 text-sm font-bold text-slate-600 text-right">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <img src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="" className="w-8 h-8 rounded-full border border-slate-200" />
+                      <div>
+                        <div className="font-bold text-slate-900">{user.displayName || 'নামহীন'}</div>
+                        <div className="text-xs text-slate-500">{user.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                      user.role === 'admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                      user.role === 'farmer' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      user.role === 'trader' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                      'bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}>
+                      {user.role === 'farmer' ? 'কৃষক' : user.role === 'trader' ? 'ব্যবসায়ী' : user.role === 'admin' ? 'অ্যাডমিন' : 'ক্রেতা'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <select 
+                      value={user.role || 'buyer'} 
+                      onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                      className="p-2 border border-slate-200 rounded-xl text-xs bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      disabled={user.email === ADMIN_EMAIL}
+                    >
+                      <option value="buyer">ক্রেতা</option>
+                      <option value="farmer">কৃষক</option>
+                      <option value="trader">ব্যবসায়ী</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">

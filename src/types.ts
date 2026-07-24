@@ -1,3 +1,16 @@
+export type UserRole = 'farmer' | 'trader' | 'buyer' | 'admin';
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL: string;
+  role: UserRole;
+  location?: string;
+  phone?: string;
+  createdAt: any;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -10,6 +23,12 @@ export interface Product {
   description: string;
   imageUrl: string;
   createdAt: any;
+  // Auction fields
+  isAuction?: boolean;
+  endTime?: any;
+  currentBid?: number;
+  highestBidderId?: string;
+  highestBidderName?: string;
 }
 
 export interface Post {
