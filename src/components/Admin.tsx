@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { MarketPrice } from '../types';
 import { motion } from 'motion/react';
 import { Plus, Trash2, Edit2, Save, X, TrendingUp, TrendingDown, Minus, Users } from 'lucide-react';
@@ -56,6 +56,35 @@ export default function Admin() {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }
   };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const email = formData.get('email') as string;
+    const displayName = formData.get('displayName') as string;
+    if (!email || !displayName) return;
+
+    try {
+      // Create a temporary ID if we don't have a UID yet
+      const tempId = `pre_${Date.now()}`;
+      await setDoc(doc(db, 'users', tempId), {
+        uid: tempId,
+        email,
+        displayName,
+        role: preSelectedRole,
+        photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+        createdAt: serverTimestamp()
+      });
+      alert('ব্যবহারকারী সফলভাবে যুক্ত করা হয়েছে।');
+      (e.target as HTMLFormElement).reset();
+      setShowUserForm(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'users');
+    }
+  };
+
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [preSelectedRole, setPreSelectedRole] = useState<'farmer' | 'trader' | 'buyer'>('farmer');
 
   const handleAddPrice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,14 +145,66 @@ export default function Admin() {
           <h1 className="text-3xl font-black text-slate-900 mb-2">অ্যাডমিন প্যানেল</h1>
           <p className="text-slate-500">বাজারের দাম এবং তথ্য পরিচালনা করুন।</p>
         </div>
-        <button 
-          onClick={() => setShowAddForm(true)}
-          className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>নতুন দাম যোগ করুন</span>
-        </button>
+        <div className="flex gap-4">
+          <button 
+            onClick={() => {
+              setPreSelectedRole('farmer');
+              setShowUserForm(true);
+            }}
+            className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
+          >
+            <Users className="w-5 h-5" />
+            <span>কৃষক যোগ করুন</span>
+          </button>
+          <button 
+            onClick={() => {
+              setPreSelectedRole('trader');
+              setShowUserForm(true);
+            }}
+            className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+          >
+            <TrendingUp className="w-5 h-5" />
+            <span>ব্যবসায়ী যোগ করুন</span>
+          </button>
+          <button 
+            onClick={() => setShowAddForm(true)}
+            className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center space-x-2 hover:bg-slate-800 transition-colors shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span>নতুন দাম যোগ করুন</span>
+          </button>
+        </div>
       </div>
+
+      {showUserForm && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black text-slate-900">ব্যবহারকারী যোগ করুন</h2>
+              <button onClick={() => setShowUserForm(false)} className="p-2 hover:bg-slate-100 rounded-full">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">পুরো নাম</label>
+                <input name="displayName" type="text" required className="w-full p-3 border border-slate-200 rounded-xl" placeholder="নাম লিখুন..." />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">ইমেইল</label>
+                <input name="email" type="email" required className="w-full p-3 border border-slate-200 rounded-xl" placeholder="ইমেইল লিখুন..." />
+              </div>
+              <button type="submit" className="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg hover:bg-emerald-700 transition-all">
+                যুক্ত করুন
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm mb-8">
         <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-2">

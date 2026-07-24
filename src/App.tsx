@@ -21,7 +21,7 @@ import Profile from './components/Profile';
 import Admin from './components/Admin';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, db } from './lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { seedInitialData } from './lib/seedData';
 import { UserProfile } from './types';
@@ -38,20 +38,49 @@ function Navigation() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        // First try to find by UID
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        
         if (userDoc.exists()) {
           setUserProfile(userDoc.data() as UserProfile);
         } else {
-          const profile: UserProfile = {
-            uid: user.uid,
-            email: user.email || '',
-            displayName: user.displayName || 'নামহীন',
-            photoURL: user.photoURL || '',
-            role: user.email === ADMIN_EMAIL ? 'admin' : 'buyer',
-            createdAt: serverTimestamp()
-          };
-          await setDoc(doc(db, 'users', user.uid), profile);
-          setUserProfile(profile);
+          // If not found by UID, check if an admin pre-registered this email
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('email', '==', user.email));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            // Pre-registered user found! Update it with the UID
+            const existingDoc = querySnapshot.docs[0];
+            const profile = {
+              ...existingDoc.data(),
+              uid: user.uid,
+              photoURL: user.photoURL || existingDoc.data().photoURL || '',
+              displayName: user.displayName || existingDoc.data().displayName || 'নামহীন',
+            } as UserProfile;
+            
+            // Move the document to use UID as the key for better performance in the future
+            await setDoc(doc(db, 'users', user.uid), profile);
+            // Optionally delete the old document if it had a different ID
+            if (existingDoc.id !== user.uid) {
+              await deleteDoc(doc(db, 'users', existingDoc.id));
+            }
+            
+            setUserProfile(profile);
+          } else {
+            // New user, create fresh profile
+            const profile: UserProfile = {
+              uid: user.uid,
+              email: user.email || '',
+              displayName: user.displayName || 'নামহীন',
+              photoURL: user.photoURL || '',
+              role: user.email === ADMIN_EMAIL ? 'admin' : 'buyer',
+              createdAt: serverTimestamp()
+            };
+            await setDoc(doc(db, 'users', user.uid), profile);
+            setUserProfile(profile);
+          }
         }
         seedInitialData().catch(console.error);
       } else {
