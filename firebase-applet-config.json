@@ -1,12 +1,12 @@
 {
-  "projectId": "ai-studio-applet-webapp-3b366",
-  "appId": "1:1007839704792:web:9fd6de8038d9cd7d55c9ad",
-  "apiKey": "AIzaSyB5TInPrCSeROrJO1WesZGdO85yQG3919o",
-  "authDomain": "ai-studio-applet-webapp-3b366.firebaseapp.com",
+  "projectId": "shufal-f16a6",
+  "appId": "1:13543877475:web:7c8d015008a91d4a068156",
+  "apiKey": "AIzaSyCU7IS0Ti-mP4yOkHiMxVjJYGOusubHsiI",
+  "authDomain": "shufal-f16a6.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-shufal-e3c6ccde-0a3d-451a-a88c-402be4cecaed",
-  "storageBucket": "ai-studio-applet-webapp-3b366.firebasestorage.app",
-  "messagingSenderId": "1007839704792",
+  "storageBucket": "shufal-f16a6.firebasestorage.app",
+  "messagingSenderId": "13543877475",
   "measurementId": "",
-  "oAuthClientId": "1007839704792-paunj9iac4hlnepsf4dfj4kdirg2ft84.apps.googleusercontent.com",
+  "oAuthClientId": "13543877475-f0algkola9bdq47mkegqm3dru0dvdga7.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }
