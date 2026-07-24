@@ -21,12 +21,12 @@ import Profile from './components/Profile';
 import Admin from './components/Admin';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, db } from './lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { seedInitialData } from './lib/seedData';
 import { UserProfile } from './types';
 
-const ADMIN_EMAIL = 'shufalharvest@gmail.com';
+const ADMIN_EMAILS = ['shufalharvest@gmail.com', 'shustobd@gmail.com'];
 
 function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -43,7 +43,15 @@ function Navigation() {
         const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
+          const profile = userDoc.data() as UserProfile;
+          // Ensure admins have the correct role in DB
+          if (ADMIN_EMAILS.includes(user.email || '') && profile.role !== 'admin') {
+            const updatedProfile = { ...profile, role: 'admin' as const };
+            await updateDoc(userDocRef, { role: 'admin' });
+            setUserProfile(updatedProfile);
+          } else {
+            setUserProfile(profile);
+          }
         } else {
           // If not found by UID, check if an admin pre-registered this email
           const usersRef = collection(db, 'users');
@@ -75,7 +83,7 @@ function Navigation() {
               email: user.email || '',
               displayName: user.displayName || 'নামহীন',
               photoURL: user.photoURL || '',
-              role: user.email === ADMIN_EMAIL ? 'admin' : 'buyer',
+              role: ADMIN_EMAILS.includes(user.email || '') ? 'admin' : 'buyer',
               createdAt: serverTimestamp()
             };
             await setDoc(doc(db, 'users', user.uid), profile);
@@ -124,7 +132,7 @@ function Navigation() {
     { name: 'পরামর্শ', path: '/tips', icon: Lightbulb },
   ];
 
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   return (
     <>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc, where, getDocs } from 'firebase/firestore';
 import { MarketPrice } from '../types';
 import { motion } from 'motion/react';
 import { Plus, Trash2, Edit2, Save, X, TrendingUp, TrendingDown, Minus, Users } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
-const ADMIN_EMAIL = 'shufalharvest@gmail.com';
+const ADMIN_EMAILS = ['shufalharvest@gmail.com', 'shustobd@gmail.com'];
 
 export default function Admin() {
   const [prices, setPrices] = useState<MarketPrice[]>([]);
@@ -15,6 +16,9 @@ export default function Admin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MarketPrice>>({});
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [preSelectedRole, setPreSelectedRole] = useState<'farmer' | 'trader' | 'buyer'>('farmer');
   const [newPrice, setNewPrice] = useState<Partial<MarketPrice>>({
     crop: '',
     price: 0,
@@ -22,9 +26,14 @@ export default function Admin() {
     region: 'ঢাকা'
   });
 
-  const isAdmin = auth.currentUser?.email === ADMIN_EMAIL;
+  const [user, setUser] = useState<FirebaseUser | null>(auth.currentUser);
+  const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   useEffect(() => {
+    const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
     const q = query(collection(db, 'marketPrices'), orderBy('lastUpdated', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const priceData = snapshot.docs.map(doc => ({
@@ -36,15 +45,31 @@ export default function Admin() {
       handleFirestoreError(error, OperationType.LIST, 'marketPrices');
     });
 
-    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    const usersQuery = collection(db, 'users');
     const usersUnsubscribe = onSnapshot(usersQuery, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const usersData = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as any));
+      
+      // Sort: Newest first, handle pending timestamps
+      usersData.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.toMillis?.() || Date.now();
+        const timeB = b.createdAt?.toMillis?.() || Date.now();
+        return timeB - timeA;
+      });
+      
+      setUsers(usersData);
       setLoading(false);
+    }, (error) => {
+      console.error("Users list error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     return () => {
       unsubscribe();
       usersUnsubscribe();
+      authUnsubscribe();
     };
   }, []);
 
@@ -59,32 +84,54 @@ export default function Admin() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const email = formData.get('email') as string;
-    const displayName = formData.get('displayName') as string;
-    if (!email || !displayName) return;
+    if (isSubmitting) return;
+
+    const target = e.target as HTMLFormElement;
+    const formData = new FormData(target);
+    const email = (formData.get('email') as string || '').toLowerCase().trim();
+    const displayName = (formData.get('displayName') as string || '').trim();
+
+    if (!email || !displayName) {
+      alert('দয়া করে নাম এবং ইমেইল দুটোই লিখুন।');
+      return;
+    }
 
     try {
-      // Create a temporary ID if we don't have a UID yet
-      const tempId = `pre_${Date.now()}`;
-      await setDoc(doc(db, 'users', tempId), {
-        uid: tempId,
+      setIsSubmitting(true);
+      
+      // Check if user already exists
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', email));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        alert('এই ইমেইল দিয়ে ইতিমধ্যে একজন ব্যবহারকারী নিবন্ধিত আছে।');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Using addDoc for cleaner creation
+      await addDoc(collection(db, 'users'), {
+        uid: `pending_${Date.now()}`,
         email,
         displayName,
         role: preSelectedRole,
         photoURL: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
         createdAt: serverTimestamp()
       });
-      alert('ব্যবহারকারী সফলভাবে যুক্ত করা হয়েছে।');
-      (e.target as HTMLFormElement).reset();
+
+      alert(`${preSelectedRole === 'farmer' ? 'কৃষক' : 'ব্যবসায়ী'} সফলভাবে যুক্ত করা হয়েছে।`);
+      target.reset();
       setShowUserForm(false);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'users');
+    } catch (error: any) {
+      console.error('Add user error:', error);
+      alert('দুঃখিত, যোগ করা যায়নি। টেকনিক্যাল এরর: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const [showUserForm, setShowUserForm] = useState(false);
-  const [preSelectedRole, setPreSelectedRole] = useState<'farmer' | 'trader' | 'buyer'>('farmer');
+  // Remove duplicate state declarations from later in the file
 
   const handleAddPrice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,8 +245,14 @@ export default function Admin() {
                 <label className="block text-sm font-bold text-slate-700 mb-1">ইমেইল</label>
                 <input name="email" type="email" required className="w-full p-3 border border-slate-200 rounded-xl" placeholder="ইমেইল লিখুন..." />
               </div>
-              <button type="submit" className="w-full bg-emerald-600 text-white py-4 rounded-xl font-black shadow-lg hover:bg-emerald-700 transition-all">
-                যুক্ত করুন
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className={`w-full py-4 rounded-xl font-black shadow-lg transition-all ${
+                  isSubmitting ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+              >
+                {isSubmitting ? 'যুক্ত হচ্ছে...' : 'যুক্ত করুন'}
               </button>
             </form>
           </motion.div>
@@ -247,7 +300,7 @@ export default function Admin() {
                       value={user.role || 'buyer'} 
                       onChange={(e) => handleUpdateRole(user.id, e.target.value)}
                       className="p-2 border border-slate-200 rounded-xl text-xs bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                      disabled={user.email === ADMIN_EMAIL}
+                      disabled={user.email && ADMIN_EMAILS.includes(user.email)}
                     >
                       <option value="buyer">ক্রেতা</option>
                       <option value="farmer">কৃষক</option>

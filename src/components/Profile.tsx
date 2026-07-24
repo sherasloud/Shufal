@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
 import { motion } from 'motion/react';
-import { User, Mail, Shield, LogOut, Package, MessageSquare, Gavel, TrendingUp } from 'lucide-react';
+import { User, Mail, Shield, LogOut, Package, MessageSquare, Gavel, TrendingUp, CreditCard } from 'lucide-react';
 import { signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { UserProfile, UserRole } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
+import WalletComponent from './Wallet';
 
-const ADMIN_EMAIL = 'shufalharvest@gmail.com';
+const ADMIN_EMAILS = ['shufalharvest@gmail.com', 'shustobd@gmail.com'];
 
 export default function Profile() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -16,19 +17,33 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const isAdminUser = user?.email && ADMIN_EMAILS.includes(user.email);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeProfile: () => void = () => {};
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         const docRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setProfile(docSnap.data() as UserProfile);
-        }
+        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as UserProfile);
+          }
+          setLoading(false);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeProfile();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -141,7 +156,7 @@ export default function Profile() {
               </div>
             </div>
 
-            {user.email === ADMIN_EMAIL && (
+            {isAdminUser && (
               <div className="md:col-span-2">
                 <button 
                   onClick={() => navigate('/admin')}
@@ -152,6 +167,14 @@ export default function Profile() {
                 </button>
               </div>
             )}
+            <section className="md:col-span-2">
+              <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center">
+                <CreditCard className="w-6 h-6 mr-3 text-emerald-600" />
+                আমার ওয়ালেট
+              </h3>
+              {profile && <WalletComponent profile={profile} />}
+            </section>
+
             <section>
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center">
                 <Package className="w-5 h-5 mr-2 text-emerald-600" />

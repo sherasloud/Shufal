@@ -9,6 +9,16 @@ export interface UserProfile {
   location?: string;
   phone?: string;
   createdAt: any;
+  walletBalance?: number;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  description: string;
+  timestamp: any;
 }
 
 export interface Product {
