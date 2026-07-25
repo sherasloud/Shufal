@@ -23,6 +23,8 @@ import MarketPrices from './components/MarketPrices';
 import Forum from './components/Forum';
 import ExpertTips from './components/ExpertTips';
 import Profile from './components/Profile';
+import WalletPage from './components/WalletPage';
+import OrdersPage from './components/OrdersPage';
 import Admin from './components/Admin';
 import { onAuthStateChanged, User as FirebaseUser, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, db } from './lib/firebase';
@@ -335,7 +337,7 @@ function Navigation() {
                     to="/profile"
                     onClick={() => setIsMenuOpen(false)}
                     className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
-                      location.pathname === '/profile' && !location.hash
+                      location.pathname === '/profile'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
                         : 'text-slate-700 hover:bg-slate-100'
                     }`}
@@ -345,11 +347,10 @@ function Navigation() {
                   </Link>
 
                   <Link
-                    to="/profile#wallet"
-                    state={{ section: 'wallet' }}
+                    to="/wallet"
                     onClick={() => setIsMenuOpen(false)}
                     className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
-                      location.hash === '#wallet'
+                      location.pathname === '/wallet'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
                         : 'text-slate-700 hover:bg-slate-100'
                     }`}
@@ -366,11 +367,10 @@ function Navigation() {
                   </Link>
 
                   <Link
-                    to="/profile#orders"
-                    state={{ section: 'orders' }}
+                    to="/orders"
                     onClick={() => setIsMenuOpen(false)}
                     className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
-                      location.hash === '#orders'
+                      location.pathname === '/orders'
                         ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
                         : 'text-slate-700 hover:bg-slate-100'
                     }`}
@@ -454,6 +454,8 @@ export default function App() {
             <Route path="/forum" element={<Forum />} />
             <Route path="/tips" element={<ExpertTips />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
