@@ -40,6 +40,8 @@ export interface Product {
   highestBidderId?: string;
   highestBidderName?: string;
   stock?: number;
+  expiresAt?: any;
+  durationHours?: number;
 }
 
 export interface Order {

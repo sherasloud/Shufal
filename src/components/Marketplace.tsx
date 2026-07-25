@@ -31,6 +31,58 @@ function PriceBadge({ value, unit, isAuction }: { value: number; unit: string; i
   );
 }
 
+function ProductCountdown({ expiresAt }: { expiresAt: any }) {
+  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [isExpired, setIsExpired] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const updateTimer = () => {
+      const targetDate = expiresAt?.toDate ? expiresAt.toDate() : new Date(expiresAt);
+      const now = new Date();
+      const diff = targetDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setIsExpired(true);
+        setTimeLeft('মেয়াদ শেষ');
+        return;
+      }
+
+      setIsExpired(false);
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      if (days > 0) {
+        setTimeLeft(`${days}দিন ${hours}ঘণ্টা`);
+      } else if (hours > 0) {
+        setTimeLeft(`${hours}ঘণ্টা ${minutes}মি ${seconds}সে`);
+      } else {
+        setTimeLeft(`${minutes}মি ${seconds}সে`);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  if (!expiresAt) return null;
+
+  return (
+    <div className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm ${
+      isExpired 
+        ? 'bg-rose-100 text-rose-700 border border-rose-200' 
+        : 'bg-amber-50 text-amber-900 border border-amber-200 animate-pulse'
+    }`}>
+      <Timer className="w-3.5 h-3.5 text-amber-600" />
+      <span>{isExpired ? 'মেয়াদ উত্তীর্ণ' : `সময় বাকি: ${timeLeft}`}</span>
+    </div>
+  );
+}
+
 export default function Marketplace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +94,8 @@ export default function Marketplace() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [lastUpdatedId, setLastUpdatedId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [durationOption, setDurationOption] = useState<string>('24');
+  const [customHoursInput, setCustomHoursInput] = useState<string>('12');
   const prevProductsRef = useRef<Product[]>([]);
   const navigate = useNavigate();
 
@@ -82,11 +136,17 @@ export default function Marketplace() {
     }
 
     try {
-      // If user is just a buyer, upgrade them to farmer since they are posting a product
       if (userProfile?.role === 'buyer') {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), {
           role: 'farmer'
         });
+      }
+
+      let durationInHours = 0;
+      if (durationOption === 'custom') {
+        durationInHours = Number(customHoursInput) || 12;
+      } else {
+        durationInHours = Number(durationOption) || 0;
       }
 
       const productData: any = {
@@ -104,9 +164,17 @@ export default function Marketplace() {
         isAuction
       };
 
+      if (durationInHours > 0) {
+        const expDate = new Date();
+        expDate.setTime(expDate.getTime() + (durationInHours * 60 * 60 * 1000));
+        productData.expiresAt = Timestamp.fromDate(expDate);
+        productData.durationHours = durationInHours;
+      }
+
       if (isAuction) {
+        const auctionHours = durationInHours > 0 ? durationInHours : (auctionDays * 24);
         const endTime = new Date();
-        endTime.setDate(endTime.getDate() + auctionDays);
+        endTime.setTime(endTime.getTime() + (auctionHours * 60 * 60 * 1000));
         productData.endTime = Timestamp.fromDate(endTime);
         productData.currentBid = price;
         productData.highestBidderId = null;
@@ -154,7 +222,7 @@ export default function Marketplace() {
           throw new Error("পর্যাপ্ত স্টক নেই।");
         }
 
-        // Deduct from wallet
+        // Deduct from buyer wallet (Held in Escrow)
         transaction.update(userRef, {
           walletBalance: increment(-totalPrice)
         });
@@ -170,11 +238,11 @@ export default function Marketplace() {
           userId: auth.currentUser!.uid,
           amount: totalPrice,
           type: 'debit',
-          description: `${selectedProduct.name} কেনা হয়েছে (${buyQuantity}${selectedProduct.unit})`,
+          description: `${selectedProduct.name} কেনা হয়েছে (${buyQuantity}${selectedProduct.unit} - Escrow এ সংরক্ষিত)`,
           timestamp: serverTimestamp()
         });
 
-        // Create Order
+        // Create Order in pending state (Escrow)
         const orderRef = doc(collection(db, 'orders'));
         transaction.set(orderRef, {
           productId: selectedProduct.id,
@@ -184,15 +252,14 @@ export default function Marketplace() {
           sellerId: selectedProduct.farmerId,
           quantity: buyQuantity,
           totalPrice,
-          status: 'completed',
+          status: 'pending',
           timestamp: serverTimestamp()
         });
       });
 
-      alert('অভিনন্দন! আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে।');
+      alert('অর্ডার সফল হয়েছে! আপনার টাকা Escrow তে নিরাপদ আছে। পণ্য হাতে পাওয়ার পর প্রোফাইল থেকে "পণ্য গ্রহণ করেছি" বাটনে ক্লিক করলে বিক্রেতা টাকা পাবেন।');
       setSelectedProduct(null);
       setBuyQuantity(1);
-      // Refresh profile to update balance
       fetchProfile();
     } catch (error: any) {
       console.error('Purchase error:', error);
@@ -496,12 +563,9 @@ export default function Marketplace() {
                 unit={product.unit} 
                 isAuction={product.isAuction} 
               />
-              {product.isAuction && product.endTime && (
-                <div className="absolute bottom-4 left-4 bg-orange-500/90 backdrop-blur px-3 py-1 rounded-lg text-white font-bold text-xs shadow-sm flex items-center gap-1">
-                  <Timer className="w-3 h-3" />
-                  {formatDistanceToNow(product.endTime.toDate(), { locale: bn, addSuffix: true })} শেষ হবে
-                </div>
-              )}
+              <div className="absolute bottom-4 left-4 z-10">
+                <ProductCountdown expiresAt={product.expiresAt || product.endTime} />
+              </div>
             </div>
             <div className="p-6">
               <div className="flex justify-between items-start mb-2">
@@ -689,6 +753,42 @@ export default function Marketplace() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">বিবরণ</label>
                 <textarea name="description" className="w-full p-3 border border-slate-200 rounded-xl h-24" placeholder="আপনার পণ্য সম্পর্কে বিস্তারিত লিখুন..."></textarea>
               </div>
+
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <label className="block text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-emerald-600" />
+                  পণ্যের মেয়াদের সময়সীমা (Duration)
+                </label>
+                <select 
+                  value={durationOption}
+                  onChange={(e) => setDurationOption(e.target.value)}
+                  className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium"
+                >
+                  <option value="6">৬ ঘণ্টা</option>
+                  <option value="12">১২ ঘণ্টা</option>
+                  <option value="24">২৪ ঘণ্টা (১ দিন)</option>
+                  <option value="72">৩ দিন</option>
+                  <option value="168">৭ দিন</option>
+                  <option value="360">১৫ দিন</option>
+                  <option value="720">৩০ দিন</option>
+                  <option value="custom">কাস্টম সময় (ঘণ্টা)</option>
+                  <option value="0">কোনো সীমাবদ্ধতা নেই (Unlimited)</option>
+                </select>
+
+                {durationOption === 'custom' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">কত ঘণ্টা থাকবে?</label>
+                    <input 
+                      type="number"
+                      value={customHoursInput}
+                      onChange={(e) => setCustomHoursInput(e.target.value)}
+                      placeholder="যেমন: ৪, ৮, ৪৮"
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium"
+                      min="1"
+                    />
+                  </div>
+                )}
+              </div>
               
               <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 space-y-3">
                 <div className="flex items-center justify-between">
@@ -699,14 +799,6 @@ export default function Marketplace() {
                   <input name="isAuction" type="checkbox" className="w-5 h-5 accent-emerald-600" />
                 </div>
                 <p className="text-xs text-slate-500 font-medium">নিলাম চালু করলে ক্রেতারা আপনার পণ্যের জন্য বিড করতে পারবেন।</p>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">নিলামের সময়সীমা (দিন)</label>
-                  <select name="auctionDays" className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm">
-                    <option value="1">১ দিন</option>
-                    <option value="3">৩ দিন</option>
-                    <option value="7">৭ দিন</option>
-                  </select>
-                </div>
               </div>
 
               <button type="submit" className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition-all">

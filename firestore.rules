@@ -30,12 +30,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow update: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow update: if isSignedIn();
       allow delete: if isAdmin();
 
       match /transactions/{transactionId} {
         allow read: if isSignedIn() && request.auth.uid == userId;
-        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isSignedIn();
       }
     }
 
@@ -52,7 +52,9 @@ service cloud.firestore {
         isOwner(resource.data.farmerId) || isAdmin() ||
         // Allow updating bid fields for any signed in user
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentBid', 'highestBidderId', 'highestBidderName']) &&
-         request.resource.data.currentBid > resource.data.currentBid)
+         request.resource.data.currentBid > resource.data.currentBid) ||
+        // Allow updating stock on order purchase
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']))
       );
       allow delete: if isOwner(resource.data.farmerId) || isAdmin();
     }
