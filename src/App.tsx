@@ -10,7 +10,8 @@ import {
   Menu, 
   X,
   User,
-  Leaf
+  Leaf,
+  MoreHorizontal
 } from 'lucide-react';
 import Marketplace from './components/Marketplace';
 import Weather from './components/Weather';
@@ -132,11 +133,19 @@ function Navigation() {
     { name: 'পরামর্শ', path: '/tips', icon: Lightbulb },
   ];
 
+  const bottomNavItems = [
+    { name: 'বাজার', path: '/', icon: ShoppingBasket },
+    { name: 'আবহাওয়া', path: '/weather', icon: CloudSun },
+    { name: 'ফোরাম', path: '/forum', icon: MessageCircle },
+    { name: 'প্রোফাইল', path: '/profile', icon: User },
+  ];
+
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 px-4 py-3 md:px-8">
+      {/* Top Navbar */}
+      <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 md:px-8">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-2 text-emerald-600 font-bold text-2xl tracking-tight">
             <Leaf className="w-8 h-8" />
@@ -193,70 +202,190 @@ function Navigation() {
             )}
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <button className="md:hidden p-2 text-slate-600" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile Top Header Right Action (User or Login) */}
+          <div className="flex md:hidden items-center space-x-2">
+            {user ? (
+              <Link to="/profile" className="p-1 rounded-full border border-slate-200">
+                <img 
+                  src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
+                  className="w-7 h-7 rounded-full" 
+                  alt="" 
+                />
+              </Link>
+            ) : (
+              <button 
+                onClick={handleAuth}
+                className="bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm"
+              >
+                লগইন
+              </button>
+            )}
+            <button 
+              className="p-2 text-slate-600 rounded-xl hover:bg-slate-100" 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              title="আরও অপশন (3 dots)"
+            >
+              <MoreHorizontal className="w-6 h-6 text-slate-800" />
+            </button>
+          </div>
         </div>
       </nav>
 
-      {/* Mobile Menu */}
+      {/* App Mobile Bottom Navigation Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 px-2 py-1.5 flex justify-around items-center shadow-lg">
+        {bottomNavItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all ${
+                isActive ? 'text-emerald-600 font-bold bg-emerald-50' : 'text-slate-500 font-medium hover:text-slate-900'
+              }`}
+            >
+              <item.icon className={`w-5 h-5 ${isActive ? 'scale-110' : ''}`} />
+              <span className="text-[11px] mt-0.5 tracking-tight">{item.name}</span>
+            </Link>
+          );
+        })}
+
+        {/* 3 Dots Menu Button in Bottom Nav */}
+        <button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all ${
+            isMenuOpen ? 'text-emerald-600 font-bold bg-emerald-50' : 'text-slate-500 font-medium hover:text-slate-900'
+          }`}
+        >
+          <MoreHorizontal className={`w-5 h-5 ${isMenuOpen ? 'scale-110 text-emerald-600' : ''}`} />
+          <span className="text-[11px] mt-0.5 tracking-tight">আরও</span>
+        </button>
+      </div>
+
+      {/* 3 Dots Overlay Bottom Sheet */}
       <AnimatePresence>
         {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-b border-slate-200 overflow-hidden"
-          >
-            <div className="px-4 py-6 space-y-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center space-x-3 text-slate-600 font-medium py-2"
-                >
-                  <item.icon className="w-6 h-6" />
-                  <span>{item.name}</span>
-                </Link>
-              ))}
+          <div className="fixed inset-0 z-[60] md:hidden">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
+            />
+
+            {/* Bottom Sheet Modal */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[2rem] p-6 shadow-2xl border-t border-slate-100 max-h-[80vh] overflow-y-auto"
+            >
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
               
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <MoreHorizontal className="w-5 h-5 text-emerald-600" />
+                  সকল অপশনসমূহ
+                </h3>
+                <button 
+                  onClick={() => setIsMenuOpen(false)} 
+                  className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <Link
+                  to="/"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                    location.pathname === '/' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
+                  }`}
+                >
+                  <ShoppingBasket className="w-6 h-6 text-emerald-600" />
+                  <span className="text-xs font-bold">বাজার</span>
+                </Link>
+
+                <Link
+                  to="/weather"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                    location.pathname === '/weather' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
+                  }`}
+                >
+                  <CloudSun className="w-6 h-6 text-amber-500" />
+                  <span className="text-xs font-bold">আবহাওয়া</span>
+                </Link>
+
+                <Link
+                  to="/prices"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                    location.pathname === '/prices' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
+                  }`}
+                >
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                  <span className="text-xs font-bold">বাজারের দর</span>
+                </Link>
+
+                <Link
+                  to="/forum"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                    location.pathname === '/forum' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
+                  }`}
+                >
+                  <MessageCircle className="w-6 h-6 text-purple-600" />
+                  <span className="text-xs font-bold">ফোরাম</span>
+                </Link>
+
+                <Link
+                  to="/tips"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                    location.pathname === '/tips' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
+                  }`}
+                >
+                  <Lightbulb className="w-6 h-6 text-amber-600" />
+                  <span className="text-xs font-bold">কৃষি পরামর্শ</span>
+                </Link>
+
+                <Link
+                  to="/profile"
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
+                    location.pathname === '/profile' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
+                  }`}
+                >
+                  <User className="w-6 h-6 text-emerald-600" />
+                  <span className="text-xs font-bold">প্রোফাইল</span>
+                </Link>
+              </div>
+
               {isAdmin && (
                 <Link
                   to="/admin"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center space-x-3 text-slate-600 font-bold py-2 border-t border-slate-50 pt-4"
+                  className="w-full flex items-center justify-center space-x-2 bg-slate-900 text-white p-4 rounded-2xl font-bold text-sm mb-4"
                 >
-                  <User className="w-6 h-6" />
+                  <User className="w-5 h-5 text-amber-400" />
                   <span>অ্যাডমিন প্যানেল</span>
                 </Link>
               )}
-              
-              {user ? (
-                <Link 
-                  to="/profile"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="w-full flex justify-center items-center space-x-2 bg-slate-100 text-slate-700 px-4 py-3 rounded-xl font-medium"
-                >
-                  <img 
-                    src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                    className="w-6 h-6 rounded-full" 
-                    alt="" 
-                  />
-                  <span>আমার প্রোফাইল</span>
-                </Link>
-              ) : (
-                <button 
+
+              {!user && (
+                <button
                   onClick={() => { handleAuth(); setIsMenuOpen(false); }}
-                  className="w-full flex justify-center items-center space-x-2 bg-emerald-600 text-white px-4 py-3 rounded-xl font-medium shadow-sm"
+                  className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-bold text-sm shadow-md"
                 >
-                  <User className="w-5 h-5" />
-                  <span>লগইন / রেজিস্ট্রেশন</span>
+                  লগইন / রেজিস্ট্রেশন
                 </button>
               )}
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </>
@@ -270,7 +399,7 @@ export default function App() {
         <Navigation />
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 py-8 md:px-8">
+        <main className="max-w-7xl mx-auto px-4 pt-8 pb-24 md:pb-8 md:px-8">
           <Routes>
             <Route path="/" element={<Marketplace />} />
             <Route path="/weather" element={<Weather />} />
@@ -284,7 +413,7 @@ export default function App() {
 
 
         {/* Footer */}
-        <footer className="bg-white border-t border-slate-200 py-12 px-4 md:px-8 mt-20">
+        <footer className="bg-white border-t border-slate-200 py-12 px-4 md:px-8 mt-12 mb-16 md:mb-0">
           <div className="max-w-7xl mx-auto text-center">
             <div className="flex justify-center items-center space-x-2 text-emerald-600 font-bold text-xl mb-4">
               <Leaf className="w-6 h-6" />
