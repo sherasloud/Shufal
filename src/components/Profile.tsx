@@ -3,7 +3,7 @@ import { db, auth } from '../lib/firebase';
 import { motion } from 'motion/react';
 import { User, Mail, Shield, LogOut, Package, MessageSquare, Gavel, TrendingUp, CreditCard, ShoppingBag } from 'lucide-react';
 import { signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, orderBy, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
 import { UserProfile, UserRole, Order } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
@@ -20,6 +20,17 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === '#wallet' || (location.state as any)?.section === 'wallet') {
+      const el = document.getElementById('wallet-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } else if (location.hash === '#orders' || (location.state as any)?.section === 'orders') {
+      const el = document.getElementById('orders-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location]);
 
   const isAdminUser = user?.email && ADMIN_EMAILS.includes(user.email);
 
@@ -271,7 +282,7 @@ export default function Profile() {
                 </button>
               </div>
             )}
-            <section className="md:col-span-2">
+            <section id="wallet-section" className="md:col-span-2 scroll-mt-24">
               <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center">
                 <CreditCard className="w-6 h-6 mr-3 text-emerald-600" />
                 আমার ওয়ালেট
@@ -279,7 +290,7 @@ export default function Profile() {
               {profile && <WalletComponent profile={profile} />}
             </section>
 
-            <section className="md:col-span-2">
+            <section id="orders-section" className="md:col-span-2 scroll-mt-24">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h3 className="text-xl font-black text-slate-900 flex items-center">
                   <ShoppingBag className="w-6 h-6 mr-3 text-emerald-600" />

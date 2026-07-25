@@ -11,7 +11,11 @@ import {
   X,
   User,
   Leaf,
-  MoreHorizontal
+  MoreHorizontal,
+  Wallet,
+  ShoppingBag,
+  Package,
+  CreditCard
 } from 'lucide-react';
 import Marketplace from './components/Marketplace';
 import Weather from './components/Weather';
@@ -144,89 +148,48 @@ function Navigation() {
 
   return (
     <>
-      {/* Top Navbar */}
+      {/* Top Header - Clean without top navigation links */}
       <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 md:px-8">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="flex items-center space-x-2 text-emerald-600 font-bold text-2xl tracking-tight">
-            <Leaf className="w-8 h-8" />
-            <span>সুফল</span>
-          </Link>
+          <div className="flex items-center space-x-3">
+            {/* 3 Dots Left Menu Trigger */}
+            <button 
+              className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-1 font-bold text-sm" 
+              onClick={() => setIsMenuOpen(true)}
+              title="মেনু (3 dots)"
+            >
+              <MoreHorizontal className="w-6 h-6 text-emerald-600" />
+            </button>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center space-x-2 transition-colors font-medium ${
-                  location.pathname === item.path ? 'text-emerald-600' : 'text-slate-600 hover:text-emerald-600'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            ))}
-            
-            {isAdmin && (
-              <Link
-                to="/admin"
-                className={`flex items-center space-x-2 transition-colors font-bold ${
-                  location.pathname === '/admin' ? 'text-emerald-600' : 'text-slate-600 hover:text-emerald-600'
-                }`}
-              >
-                <User className="w-5 h-5" />
-                <span>অ্যাডমিন</span>
-              </Link>
-            )}
-            
+            <Link to="/" className="flex items-center space-x-2 text-emerald-600 font-bold text-xl md:text-2xl tracking-tight">
+              <Leaf className="w-7 h-7 md:w-8 md:h-8 text-emerald-600" />
+              <span>সুফল</span>
+            </Link>
+          </div>
+
+          {/* Right Header Action (User Profile / Login) */}
+          <div className="flex items-center space-x-3">
             {user ? (
               <Link 
-                to="/profile"
-                className="flex items-center space-x-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-full font-medium hover:bg-slate-200 transition-all"
+                to="/profile" 
+                className="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all border border-slate-200"
               >
                 <img 
                   src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
                   className="w-6 h-6 rounded-full" 
                   alt="" 
                 />
-                <span>প্রোফাইল</span>
+                <span className="hidden sm:inline font-bold">{userProfile?.displayName || user.displayName || 'প্রোফাইল'}</span>
               </Link>
             ) : (
               <button 
                 onClick={handleAuth}
-                className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-700 transition-all shadow-sm"
+                className="bg-emerald-600 text-white px-4 py-2 rounded-full text-xs md:text-sm font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center space-x-1"
               >
-                <User className="w-5 h-5" />
+                <User className="w-4 h-4" />
                 <span>লগইন</span>
               </button>
             )}
-          </div>
-
-          {/* Mobile Top Header Right Action (User or Login) */}
-          <div className="flex md:hidden items-center space-x-2">
-            {user ? (
-              <Link to="/profile" className="p-1 rounded-full border border-slate-200">
-                <img 
-                  src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                  className="w-7 h-7 rounded-full" 
-                  alt="" 
-                />
-              </Link>
-            ) : (
-              <button 
-                onClick={handleAuth}
-                className="bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-sm"
-              >
-                লগইন
-              </button>
-            )}
-            <button 
-              className="p-2 text-slate-600 rounded-xl hover:bg-slate-100" 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              title="আরও অপশন (3 dots)"
-            >
-              <MoreHorizontal className="w-6 h-6 text-slate-800" />
-            </button>
           </div>
         </div>
       </nav>
@@ -251,139 +214,223 @@ function Navigation() {
 
         {/* 3 Dots Menu Button in Bottom Nav */}
         <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          onClick={() => setIsMenuOpen(true)}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all ${
             isMenuOpen ? 'text-emerald-600 font-bold bg-emerald-50' : 'text-slate-500 font-medium hover:text-slate-900'
           }`}
         >
           <MoreHorizontal className={`w-5 h-5 ${isMenuOpen ? 'scale-110 text-emerald-600' : ''}`} />
-          <span className="text-[11px] mt-0.5 tracking-tight">আরও</span>
+          <span className="text-[11px] mt-0.5 tracking-tight">মেনু</span>
         </button>
       </div>
 
-      {/* 3 Dots Overlay Bottom Sheet */}
+      {/* Left Side Navigation Drawer (Line by Line on the Left) */}
       <AnimatePresence>
         {isMenuOpen && (
-          <div className="fixed inset-0 z-[60] md:hidden">
-            {/* Backdrop */}
+          <div className="fixed inset-0 z-[60]">
+            {/* Dark Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMenuOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs"
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs"
             />
 
-            {/* Bottom Sheet Modal */}
+            {/* Left Slide Drawer */}
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[2rem] p-6 shadow-2xl border-t border-slate-100 max-h-[80vh] overflow-y-auto"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="absolute top-0 bottom-0 left-0 w-80 max-w-[85vw] bg-white shadow-2xl flex flex-col justify-between border-r border-slate-200 overflow-y-auto"
             >
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
-              
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <MoreHorizontal className="w-5 h-5 text-emerald-600" />
-                  সকল অপশনসমূহ
-                </h3>
-                <button 
-                  onClick={() => setIsMenuOpen(false)} 
-                  className="p-2 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+              <div>
+                {/* Drawer Header */}
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <div className="flex items-center space-x-2 text-emerald-600 font-bold text-xl">
+                    <Leaf className="w-7 h-7 text-emerald-600" />
+                    <span className="text-slate-900 font-black">সুফল মেনু</span>
+                  </div>
+                  <button 
+                    onClick={() => setIsMenuOpen(false)} 
+                    className="p-2 bg-white rounded-full text-slate-500 hover:text-slate-900 border border-slate-200 shadow-xs"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Line by Line Navigation Items on the Left */}
+                <div className="p-4 space-y-1">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 mb-2">
+                    ন্যাভিগেশন তালিকা
+                  </p>
+
+                  <Link
+                    to="/"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.pathname === '/' 
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ShoppingBasket className="w-5 h-5 shrink-0" />
+                    <span>বাজার (Marketplace)</span>
+                  </Link>
+
+                  <Link
+                    to="/weather"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.pathname === '/weather' 
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <CloudSun className="w-5 h-5 shrink-0 text-amber-500" />
+                    <span>আবহাওয়া তথ্য</span>
+                  </Link>
+
+                  <Link
+                    to="/prices"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.pathname === '/prices' 
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <TrendingUp className="w-5 h-5 shrink-0 text-blue-500" />
+                    <span>আজকের বাজারের দর</span>
+                  </Link>
+
+                  <Link
+                    to="/forum"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.pathname === '/forum' 
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <MessageCircle className="w-5 h-5 shrink-0 text-purple-500" />
+                    <span>কৃষি ফোরাম</span>
+                  </Link>
+
+                  <Link
+                    to="/tips"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.pathname === '/tips' 
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Lightbulb className="w-5 h-5 shrink-0 text-amber-600" />
+                    <span>কৃষি পরামর্শ</span>
+                  </Link>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.pathname === '/profile' && !location.hash
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <User className="w-5 h-5 shrink-0 text-emerald-600" />
+                    <span>আমার প্রোফাইল</span>
+                  </Link>
+
+                  <Link
+                    to="/profile#wallet"
+                    state={{ section: 'wallet' }}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.hash === '#wallet'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3.5">
+                      <CreditCard className="w-5 h-5 shrink-0 text-emerald-600" />
+                      <span>আমার ওয়ালেট (Wallet)</span>
+                    </div>
+                    {userProfile?.walletBalance !== undefined && (
+                      <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-black">
+                        ৳{userProfile.walletBalance}
+                      </span>
+                    )}
+                  </Link>
+
+                  <Link
+                    to="/profile#orders"
+                    state={{ section: 'orders' }}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+                      location.hash === '#orders'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ShoppingBag className="w-5 h-5 shrink-0 text-blue-600" />
+                    <span>আমার অর্ডারসমূহ</span>
+                  </Link>
+
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center space-x-3.5 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm mt-4 ${
+                        location.pathname === '/admin' 
+                          ? 'bg-slate-900 text-amber-400 shadow-md' 
+                          : 'bg-slate-900/90 text-white hover:bg-slate-900'
+                      }`}
+                    >
+                      <User className="w-5 h-5 text-amber-400 shrink-0" />
+                      <span>অ্যাডমিন প্যানেল</span>
+                    </Link>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <Link
-                  to="/"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
-                    location.pathname === '/' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
-                  }`}
-                >
-                  <ShoppingBasket className="w-6 h-6 text-emerald-600" />
-                  <span className="text-xs font-bold">বাজার</span>
-                </Link>
-
-                <Link
-                  to="/weather"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
-                    location.pathname === '/weather' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
-                  }`}
-                >
-                  <CloudSun className="w-6 h-6 text-amber-500" />
-                  <span className="text-xs font-bold">আবহাওয়া</span>
-                </Link>
-
-                <Link
-                  to="/prices"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
-                    location.pathname === '/prices' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
-                  }`}
-                >
-                  <TrendingUp className="w-6 h-6 text-blue-600" />
-                  <span className="text-xs font-bold">বাজারের দর</span>
-                </Link>
-
-                <Link
-                  to="/forum"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
-                    location.pathname === '/forum' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
-                  }`}
-                >
-                  <MessageCircle className="w-6 h-6 text-purple-600" />
-                  <span className="text-xs font-bold">ফোরাম</span>
-                </Link>
-
-                <Link
-                  to="/tips"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
-                    location.pathname === '/tips' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
-                  }`}
-                >
-                  <Lightbulb className="w-6 h-6 text-amber-600" />
-                  <span className="text-xs font-bold">কৃষি পরামর্শ</span>
-                </Link>
-
-                <Link
-                  to="/profile"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center gap-2 transition-all ${
-                    location.pathname === '/profile' ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-700'
-                  }`}
-                >
-                  <User className="w-6 h-6 text-emerald-600" />
-                  <span className="text-xs font-bold">প্রোফাইল</span>
-                </Link>
+              {/* Drawer Footer */}
+              <div className="p-4 border-t border-slate-100 bg-slate-50 space-y-3">
+                {user ? (
+                  <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-slate-200">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <img 
+                        src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
+                        className="w-9 h-9 rounded-full shrink-0" 
+                        alt="" 
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{userProfile?.displayName || user.displayName || 'ব্যবহারকারী'}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => { auth.signOut(); setIsMenuOpen(false); }}
+                      className="text-xs text-rose-600 font-bold hover:underline shrink-0"
+                    >
+                      লগআউট
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { handleAuth(); setIsMenuOpen(false); }}
+                    className="w-full bg-emerald-600 text-white py-3.5 rounded-2xl font-bold text-sm shadow-md hover:bg-emerald-700 transition-all flex items-center justify-center space-x-2"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>লগইন / রেজিস্ট্রেশন</span>
+                  </button>
+                )}
+                <p className="text-center text-[10px] text-slate-400 font-medium">
+                  সুফল ডিজিটাল কৃষি প্ল্যাটফর্ম © ২০২৬
+                </p>
               </div>
-
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="w-full flex items-center justify-center space-x-2 bg-slate-900 text-white p-4 rounded-2xl font-bold text-sm mb-4"
-                >
-                  <User className="w-5 h-5 text-amber-400" />
-                  <span>অ্যাডমিন প্যানেল</span>
-                </Link>
-              )}
-
-              {!user && (
-                <button
-                  onClick={() => { handleAuth(); setIsMenuOpen(false); }}
-                  className="w-full bg-emerald-600 text-white p-4 rounded-2xl font-bold text-sm shadow-md"
-                >
-                  লগইন / রেজিস্ট্রেশন
-                </button>
-              )}
             </motion.div>
           </div>
         )}
